@@ -74,8 +74,8 @@ Các file chạy sẵn đã được biên dịch sẵn trong thư mục `bin/`.
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/LinhMyName/firewall.git
-cd firewall/bin
+git clone https://github.com/LinhMyName/tcp-antiddos-firewall.git
+cd tcp-antiddos-firewall/bin
 
 # 2. Chạy script tối ưu hóa Kernel Linux (1-click)
 sudo chmod +x optimize-vps.sh firewall-linux-amd64
@@ -165,8 +165,8 @@ Yêu cầu: Đã cài đặt [Go 1.22+](https://golang.org/dl/).
 
 ```bash
 # Clone source code
-git clone https://github.com/LinhMyName/firewall.git
-cd firewall
+git clone https://github.com/LinhMyName/tcp-antiddos-firewall.git
+cd tcp-antiddos-firewall
 
 # Biên dịch bản chạy cho Windows (.exe)
 go build -ldflags="-s -w" -o bin/firewall.exe ./cmd/firewall
