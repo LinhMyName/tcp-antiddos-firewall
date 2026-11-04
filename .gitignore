@@ -1,0 +1,17 @@
+# Binaries at root (keep bin/ directory for turnkey clone)
+/firewall.exe
+/firewall-linux-amd64
+/config.txt
+
+# OS and Editor files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Build artifacts
+*.test
+*.out

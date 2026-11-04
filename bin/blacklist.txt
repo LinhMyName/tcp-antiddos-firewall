@@ -1,0 +1,3 @@
+# Anti-DDoS Firewall - Blacklist
+# Danh sách IP và Dải Subnet bị chặn vĩnh viễn
+# Các IP vi phạm nhiều lần sẽ tự động được ghi thêm vào đây

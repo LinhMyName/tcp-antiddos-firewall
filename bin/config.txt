@@ -1,0 +1,85 @@
+# ============================================================
+# ANTI-DDOS TCP PROXY FIREWALL v3.5 - CONFIGURATION FILE
+# ============================================================
+
+# ============================================================
+# NETWORK & BINDING CONFIGURATION
+# ============================================================
+# Địa chỉ & Port Firewall lắng nghe trên VPS trung gian (Public-facing)
+firewall_host=0.0.0.0
+firewall_port=9999
+
+# Địa chỉ & Port của Game Server gốc (Backend Server)
+# Cắm IP VPS game gốc hoặc Server nội bộ vào đây
+backend_host=127.0.0.1
+backend_port=14445
+
+# ============================================================
+# CONNECTION LIMITS (Per IP)
+# ============================================================
+# Giới hạn cho IP trong Whitelist (Tin cậy)
+max_conn_per_ip=200          # Tối đa kết nối đồng thời cho IP Whitelist
+max_conn_rate=100            # Tối đa kết nối mới/giây cho IP Whitelist
+
+# Giới hạn cho IP ngoài (Chưa tin cậy) - NGHIÊM NGẶT
+max_conn_per_external_ip=5   # Tối đa 5 kết nối đồng thời từ 1 IP ngoài
+max_conn_rate_external=3     # Tối đa 3 kết nối mới/giây từ 1 IP ngoài
+max_msgs_per_sec_external=50 # Tối đa 50 gói tin/giây từ 1 IP ngoài
+
+# ============================================================
+# GLOBAL LIMITS
+# ============================================================
+max_global_conn_rate=500     # Tối đa kết nối mới/giây toàn hệ thống
+max_global_active=2000       # Tối đa tổng số kết nối đồng thời
+max_bytes_per_sec=10485760   # Băng thông tối đa mỗi IP (10 MB/s)
+max_msgs_per_sec=500         # Gói tin tối đa mỗi IP
+
+# ============================================================
+# BLOCKING & PENALTIES
+# ============================================================
+penalty_threshold=150        # Tự động chặn khi điểm phạt đạt 150
+auto_blacklist_offenses=3    # Đưa vào blacklist vĩnh viễn sau 3 lần tái phạm
+
+# Thời gian chặn lũy tiến (giây)
+block_duration_1=30          # Vi phạm lần 1: chặn 30 giây
+block_duration_2=120         # Vi phạm lần 2: chặn 2 phút
+block_duration_3=600         # Vi phạm lần 3: chặn 10 phút
+block_duration_4=86400       # Vi phạm lần 4+: chặn 24 giờ
+
+# ============================================================
+# ATTACK DETECTION
+# ============================================================
+# Chống SYN Flood & Treo kết nối Half-Open
+max_halfopen_per_ip=10       # Tối đa kết nối half-open từ 1 IP
+max_global_halfopen=200      # Tối đa kết nối half-open toàn cục
+halfopen_timeout_sec=3       # Timeout nếu không gửi dữ liệu ban đầu (giây)
+
+# Chống Slowloris (Kết nối chậm)
+slowloris_timeout_sec=8      # Timeout kiểm tra
+slowloris_min_bytes=100      # Lượng byte tối thiểu phải truyền
+
+# Tấn công phân tán & Chặn dải Subnet (Cluster Detection)
+subnet_block_threshold_24=3  # Chặn cả dải /24 khi có >= 3 IP trong dải bị chặn
+subnet_block_threshold_16=2  # Chặn cả dải /16 khi có >= 2 dải /24 bị chặn
+cluster_detect_min_ips=10    # Cluster attack = >= 10 IP mới trong cửa sổ thời gian
+cluster_detect_window_sec=5  # Cửa sổ thời gian phát hiện cluster (giây)
+
+# Chống Đột biến (Surge Protection)
+surge_multiplier=3           # Đột biến = Tăng gấp 3 lần lưu lượng nền bình thường
+surge_cooldown_sec=30        # Thời gian kích hoạt chế độ phòng thủ sau đột biến (giây)
+max_accept_rate_attack=50    # Tốc độ nhận kết nối tối đa khi đang bị tấn công
+
+# ============================================================
+# KERNEL-LEVEL BLOCKING (Windows netsh / Linux iptables)
+# ============================================================
+kernel_block_enabled=true    # Kích hoạt chặn ở tầng Kernel OS để tối ưu CPU
+kernel_block_min_level=3     # Số lần tái phạm để kích hoạt kernel block
+kernel_rule_cleanup_hours=24 # Tự dọn dẹp quy tắc sau 24 giờ
+
+# ============================================================
+# FILE & RELOAD INTERVALS
+# ============================================================
+whitelist_reload_sec=60      # Tự động tải lại whitelist.txt mỗi 60 giây
+stats_interval_sec=5         # Tần suất in bảng thống kê Dashboard (giây)
+whitelist_file=whitelist.txt
+blacklist_file=blacklist.txt

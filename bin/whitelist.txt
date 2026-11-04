@@ -1,0 +1,5 @@
+# Anti-DDoS Firewall - Whitelist
+# Danh sách IP và Dải IP tin tưởng (bỏ qua mọi giới hạn và chữ ký)
+# Tự động nạp lại mỗi 60 giây mà không cần khởi động lại firewall.
+127.0.0.1
+::1
