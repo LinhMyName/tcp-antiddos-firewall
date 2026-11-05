@@ -271,6 +271,16 @@ func (e *Engine) handleClient(clientConn net.Conn) {
 		_ = tc.SetKeepAlive(true)
 	}
 
+	// PROXY Protocol Header injection (Forward real client IP to backend)
+	if cfg.ProxyProtocol != "" && cfg.ProxyProtocol != "off" {
+		header := BuildProxyHeader(cfg.ProxyProtocol, clientConn, backendConn)
+		if len(header) > 0 {
+			if _, err := backendConn.Write(header); err != nil {
+				return
+			}
+		}
+	}
+
 	// Forward initial handshake payload to backend
 	if _, err := backendConn.Write(initialBuf[:n]); err != nil {
 		return
@@ -408,6 +418,7 @@ func (e *Engine) printBanner(cfg *config.Config) {
 		fmt.Println("  Admin Rights:     NO (Kernel blocking disabled - socket level only)")
 	}
 	fmt.Printf("  Defense Mode:     %s\n", e.surge.CurrentMode())
+	fmt.Printf("  Proxy Protocol:   %s\n", cfg.ProxyProtocol)
 	fmt.Printf("  Whitelist Reload: Every %v\n", cfg.WhitelistReloadSec)
 	fmt.Println("============================================================")
 	fmt.Println("[FIREWALL] Proxy engine listening for connections...")

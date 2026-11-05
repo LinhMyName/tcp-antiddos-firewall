@@ -63,6 +63,7 @@ Hỗ trợ chạy native đa nền tảng trên cả **Linux VPS** (Ubuntu, Debi
    - **Linux:** Tự động tạo hash table **`ipset`** và chèn vào `mangle PREROUTING` để drop packet ở tốc độ $O(1)$ ngay tại card mạng.
    - **Windows:** Tự động gọi `netsh advfirewall` để drop ở mức Network Driver.
 10. **Tối ưu Game Ping:** Tích hợp `TCP_NODELAY` (vô hiệu hóa Nagle) và `TCPKeepAlive`, giảm thiểu tối đa độ trễ cho game thủ.
+11. **PROXY Protocol v1 & v2 (Real Client IP Forwarding):** Tùy chọn chuyển tiếp IP và Port gốc của người chơi/khách về Server Game backend qua chuẩn HAProxy PROXY Protocol. Giúp Server Game biết chính xác IP kết nối mà không bị lộ IP thật ra ngoài Internet.
 
 ---
 
@@ -137,6 +138,9 @@ firewall_port=13979
 # Địa chỉ & Port của Server Game gốc (Backend Server)
 backend_host=103.xxx.xxx.xxx
 backend_port=13979
+
+# PROXY Protocol (Chuyển tiếp IP gốc của người chơi về Server Backend: off, v1, v2)
+proxy_protocol=v1
 
 # Giới hạn cho IP ngoài (Chưa tin cậy)
 max_conn_per_external_ip=5   # Tối đa 5 kết nối đồng thời từ 1 IP ngoài

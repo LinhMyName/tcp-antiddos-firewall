@@ -15,6 +15,14 @@ backend_host=127.0.0.1
 backend_port=14445
 
 # ============================================================
+# PROXY PROTOCOL (Đẩy IP thật của Client về Backend Server)
+# ============================================================
+# off : Tắt (mặc định) - Backend server nhận IP là IP của VPS Firewall
+# v1  : PROXY Protocol v1 (Dạng text: PROXY TCP4 <Client_IP> <FW_IP> <Port> <Port>\r\n)
+# v2  : PROXY Protocol v2 (Dạng binary nhị phân siêu tốc)
+proxy_protocol=off
+
+# ============================================================
 # CONNECTION LIMITS (Per IP)
 # ============================================================
 # Giới hạn cho IP trong Whitelist (Tin cậy)

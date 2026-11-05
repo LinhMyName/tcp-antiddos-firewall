@@ -35,6 +35,82 @@ backend_port=14445
 > - Chỉ những kết nối hợp lệ mới được chuyển tiếp (forward) về Server Game gốc (`backend_host:14445`).
 > - IP thật của Server Game gốc hoàn toàn được giấu kín sau VPS trung gian.
 
+### 2.1. Cấu hình đẩy IP gốc của người chơi về Server Backend (PROXY Protocol)
+
+Mặc định khi qua TCP Reverse Proxy, Server Game gốc sẽ chỉ thấy IP của VPS Firewall kết nối tới. Để đẩy IP thật của Client/người chơi về Server Game gốc, cấu hình tham số sau trong `config.txt`:
+
+```ini
+# Giá trị: off (mặc định), v1 (Text), v2 (Binary)
+proxy_protocol=v1
+```
+
+- **`proxy_protocol=v1`**: Gửi header text theo chuẩn HAProxy PROXY Protocol v1 ngay đầu kết nối:
+  `PROXY TCP4 <Client_IP> <Firewall_IP> <Client_Port> <Firewall_Port>\r\n`
+- **`proxy_protocol=v2`**: Gửi header binary nhị phân theo chuẩn HAProxy PROXY Protocol v2 (hiệu năng cao, 28 bytes).
+
+#### 🛠️ Hướng dẫn phía Server Game gốc nhận diện IP thật:
+
+**Cách 1: Nếu Server Game hỗ trợ sẵn PROXY Protocol (Minecraft Velocity / BungeeCord / Paper):**
+- Mở file cấu hình game server (ví dụ `velocity.toml`, `config.yml`, hoặc `paper.yml`), tìm mục:
+  ```yaml
+  proxy-protocol: true
+  ```
+- Khởi động lại server game, server sẽ tự động nhận diện IP gốc của người chơi.
+
+**Cách 2: Nếu Server Game đứng sau Nginx Stream:**
+```nginx
+stream {
+    server {
+        listen 14445 proxy_protocol;
+        proxy_pass 127.0.0.1:24445; # Forward vào Game Server nội bộ
+    }
+}
+```
+
+**Cách 3: Nếu Server Game tự lập trình (C++, C#, Java, Go, NodeJS, Python):**
+Khi nhận kết nối socket mới, server đọc chuỗi text đầu tiên đến ký tự `\r\n`.
+Nếu bắt đầu bằng `PROXY TCP4 `, tách chuỗi theo khoảng trắng: phần tử thứ 3 là IP thật!
+
+*Mẫu code C# Socket:*
+```csharp
+byte[] buf = new byte[256];
+int read = clientSocket.Receive(buf, SocketFlags.Peek);
+string header = Encoding.ASCII.GetString(buf, 0, read);
+if (header.StartsWith("PROXY TCP4 ")) {
+    // Đọc chính thức để nuốt header ra khỏi luồng
+    int endIdx = header.IndexOf("\r\n") + 2;
+    clientSocket.Receive(new byte[endIdx]);
+    
+    string[] parts = header.Substring(0, endIdx - 2).Split(' ');
+    string realClientIP = parts[2];
+    Console.WriteLine($"[INFO] Player Real IP: {realClientIP}");
+}
+```
+
+*Mẫu code Node.js:*
+```javascript
+const net = require('net');
+const server = net.createServer((socket) => {
+    socket.once('data', (data) => {
+        const text = data.toString('utf8');
+        if (text.startsWith('PROXY TCP4 ')) {
+            const lineEnd = text.indexOf('\r\n');
+            const parts = text.substring(0, lineEnd).split(' ');
+            const realIP = parts[2];
+            console.log('Player Real IP:', realIP);
+            
+            // Dữ liệu game còn lại sau header (nếu có):
+            const gameData = data.subarray(lineEnd + 2);
+            if (gameData.length > 0) handleGamePacket(socket, gameData);
+        }
+    });
+});
+```
+
+**Cách 4: Dành cho Server Game binary đóng (không sửa được source code) trên Linux:**
+- Sử dụng tool **`mmproxy`** của Cloudflare đặt trên Server Game gốc.
+- `mmproxy` lắng nghe gói PROXY Protocol từ Firewall VPS, sau đó sử dụng Linux `TPROXY` chuyển tiếp vào cổng game nội bộ và gán thẳng IP thật vào socket hệ điều hành.
+
 ---
 
 ## 3. Hướng Dẫn Chạy Trên Windows

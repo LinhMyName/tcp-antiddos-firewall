@@ -139,3 +139,82 @@ kernel_block_enabled=false
 		_ = engine.acl.ReloadWhitelist()
 	})
 }
+
+func TestProxyProtocolEndToEnd(t *testing.T) {
+	receivedHeaderChan := make(chan string, 1)
+
+	backendListener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("failed to start backend mock: %v", err)
+	}
+	defer backendListener.Close()
+
+	backendAddr := backendListener.Addr().(*net.TCPAddr)
+
+	go func() {
+		conn, err := backendListener.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		reader := bufio.NewReader(conn)
+		line, _ := reader.ReadString('\n')
+		receivedHeaderChan <- line
+	}()
+
+	tmpDir := t.TempDir()
+	cfgFile := filepath.Join(tmpDir, "config.txt")
+	wlFile := filepath.Join(tmpDir, "whitelist.txt")
+	blFile := filepath.Join(tmpDir, "blacklist.txt")
+
+	_ = os.WriteFile(wlFile, []byte("127.0.0.1\n"), 0644)
+	_ = os.WriteFile(blFile, []byte(""), 0644)
+
+	testLn, _ := net.Listen("tcp", "127.0.0.1:0")
+	fwPort := testLn.Addr().(*net.TCPAddr).Port
+	testLn.Close()
+
+	cfgContent := fmt.Sprintf(`
+firewall_host=127.0.0.1
+firewall_port=%d
+backend_host=127.0.0.1
+backend_port=%d
+proxy_protocol=v1
+whitelist_file=%s
+blacklist_file=%s
+kernel_block_enabled=false
+`, fwPort, backendAddr.Port, strings.ReplaceAll(wlFile, `\`, `/`), strings.ReplaceAll(blFile, `\`, `/`))
+
+	_ = os.WriteFile(cfgFile, []byte(cfgContent), 0644)
+
+	cfgMgr, err := config.NewManager(cfgFile)
+	if err != nil {
+		t.Fatalf("failed to load cfg: %v", err)
+	}
+
+	engine := NewEngine(cfgMgr)
+	go func() {
+		_ = engine.Start()
+	}()
+	defer engine.Stop()
+
+	time.Sleep(100 * time.Millisecond)
+
+	fwAddr := fmt.Sprintf("127.0.0.1:%d", fwPort)
+	conn, err := net.DialTimeout("tcp", fwAddr, 2*time.Second)
+	if err != nil {
+		t.Fatalf("failed to connect to firewall: %v", err)
+	}
+	defer conn.Close()
+
+	_, _ = conn.Write([]byte("GAME_PACKET_HELLO\n"))
+
+	select {
+	case line := <-receivedHeaderChan:
+		if !strings.HasPrefix(line, "PROXY TCP4 127.0.0.1") {
+			t.Fatalf("unexpected proxy header received at backend: %q", line)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("timed out waiting for PROXY header at backend")
+	}
+}

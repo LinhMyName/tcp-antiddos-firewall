@@ -19,6 +19,7 @@ func main() {
 	backendAddr := flag.String("backend", "", "Override backend game server address (host:port, e.g. 192.168.1.50:14445)")
 	whitelistPath := flag.String("whitelist", "", "Path to whitelist file (default: whitelist.txt)")
 	blacklistPath := flag.String("blacklist", "", "Path to blacklist file (default: blacklist.txt)")
+	proxyProto := flag.String("proxy-protocol", "", "Override proxy protocol mode to send client IP (off, v1, v2)")
 	flag.Parse()
 
 	// 1. Load configuration
@@ -56,6 +57,9 @@ func main() {
 	}
 	if *blacklistPath != "" {
 		cfg.BlacklistFile = *blacklistPath
+	}
+	if *proxyProto != "" {
+		cfg.ProxyProtocol = *proxyProto
 	}
 
 	// 2. Initialize Proxy Engine

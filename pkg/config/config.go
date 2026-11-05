@@ -18,6 +18,9 @@ type Config struct {
 	BackendHost  string
 	BackendPort  int
 
+	// PROXY Protocol (Real Client IP forwarding: "off", "v1", "v2")
+	ProxyProtocol string
+
 	// Connection limits per IP (Whitelisted)
 	MaxConnPerIP int
 	MaxConnRate  int
@@ -83,6 +86,7 @@ func DefaultConfig() *Config {
 		FirewallPort:          9999,
 		BackendHost:           "127.0.0.1",
 		BackendPort:           14445,
+		ProxyProtocol:         "off",
 		MaxConnPerIP:          200,
 		MaxConnRate:           100,
 		MaxConnPerExternalIP:  5,
@@ -196,6 +200,15 @@ func (m *Manager) Load() error {
 		case "backend_port":
 			if p, err := strconv.Atoi(val); err == nil && p > 0 {
 				newCfg.BackendPort = p
+			}
+		case "proxy_protocol":
+			valLower := strings.ToLower(val)
+			if valLower == "v1" || valLower == "1" {
+				newCfg.ProxyProtocol = "v1"
+			} else if valLower == "v2" || valLower == "2" {
+				newCfg.ProxyProtocol = "v2"
+			} else {
+				newCfg.ProxyProtocol = "off"
 			}
 		case "max_conn_per_ip":
 			if n, err := strconv.Atoi(val); err == nil {
@@ -349,6 +362,12 @@ firewall_port=9999
 # Dia chi va Port cua Game Server backend goc
 backend_host=127.0.0.1
 backend_port=14445
+
+# PROXY PROTOCOL (Day IP that cua Client ve Backend Server)
+# off: Tat (mac dinh) - Backend server nhan IP cua VPS Firewall
+# v1 : PROXY Protocol v1 (Dang text: PROXY TCP4 <Client_IP> <FW_IP> <Port> <Port>\r\n)
+# v2 : PROXY Protocol v2 (Dang binary nhi phan sieu toc)
+proxy_protocol=off
 
 # ============================================================
 # CONNECTION LIMITS (Per IP)
