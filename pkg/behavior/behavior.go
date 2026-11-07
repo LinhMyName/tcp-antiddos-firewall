@@ -1,6 +1,7 @@
 package behavior
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -73,7 +74,7 @@ func (m *Manager) AddPenalty(ipStr string, points int, reason string, cfg *confi
 
 		// Auto-blacklist permanently if reached threshold
 		if record.OffenseCount >= cfg.AutoBlacklistOffenses && m.onAutoBlacklist != nil {
-			m.onAutoBlacklist(ipStr, "Auto-blacklisted after "+string(rune(record.OffenseCount))+" offenses: "+reason)
+			m.onAutoBlacklist(ipStr, fmt.Sprintf("Auto-blacklisted after %d offenses: %s", record.OffenseCount, reason))
 		}
 
 		return true, duration

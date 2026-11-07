@@ -45,6 +45,29 @@ func (b *Blocker) HasAdminRights() bool {
 	return b.hasAdmin
 }
 
+// SetEnabled dynamically toggles kernel-level packet dropping.
+func (b *Blocker) SetEnabled(enabled bool) {
+	b.mu.Lock()
+	b.enabled = enabled
+	if enabled && !b.hasAdmin {
+		b.hasAdmin = b.checkPrivileges()
+		if b.hasAdmin && runtime.GOOS == "linux" {
+			if _, err := exec.LookPath("ipset"); err == nil {
+				b.useIPSet = true
+			}
+			b.initLinuxFirewall()
+		}
+	}
+	b.mu.Unlock()
+}
+
+// ActiveRuleCount returns the number of OS-level rules managed by the blocker.
+func (b *Blocker) ActiveRuleCount() int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return len(b.blockedRules)
+}
+
 // BlockIP adds an OS-level kernel drop rule for the IP or subnet.
 func (b *Blocker) BlockIP(target string, reason string) error {
 	if !b.enabled || !b.hasAdmin {
@@ -125,13 +148,75 @@ func (b *Blocker) ClearAllAntiDDoSRules() {
 	if runtime.GOOS == "windows" {
 		_ = exec.Command("powershell", "-Command", "Get-NetFirewallRule -Name 'AntiDDoS_*' -ErrorAction SilentlyContinue | Remove-NetFirewallRule").Run()
 	} else if runtime.GOOS == "linux" {
+		b.clearLinuxGeoIPRules()
 		if b.useIPSet {
 			_ = exec.Command("ipset", "flush", "antiddos_blacklist").Run()
 			_ = exec.Command("ipset", "flush", "antiddos_subnets").Run()
+			_ = exec.Command("ipset", "flush", "antiddos_geo_allow").Run()
 		} else {
 			_ = exec.Command("bash", "-c", "iptables -t mangle -S PREROUTING | grep 'AntiDDoS' | sed 's/-A/-D/' | while read line; do iptables -t mangle $line; done").Run()
 		}
 	}
+}
+
+// SyncGeoIPKernelRules configures OS-level ipset/iptables rules for Inbound and Outbound country filtering on Linux.
+func (b *Blocker) SyncGeoIPKernelRules(enforce bool, direction string, firewallPort int, allowedCIDRs []string, extraAllowed []string) {
+	if !b.enabled || !b.hasAdmin || runtime.GOOS != "linux" || !b.useIPSet {
+		return
+	}
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	b.clearLinuxGeoIPRules()
+	if !enforce || len(allowedCIDRs) == 0 {
+		return
+	}
+
+	var sb strings.Builder
+	sb.WriteString("create antiddos_geo_allow hash:net family inet hashsize 16384 maxelem 500000 -exist\n")
+	sb.WriteString("create antiddos_geo_tmp hash:net family inet hashsize 16384 maxelem 500000 -exist\n")
+	sb.WriteString("flush antiddos_geo_tmp\n")
+
+	// Always allow private/loopback subnets in kernel set
+	privateNets := []string{"127.0.0.0/8", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10"}
+	for _, netStr := range privateNets {
+		sb.WriteString(fmt.Sprintf("add antiddos_geo_tmp %s -exist\n", netStr))
+	}
+	for _, extra := range extraAllowed {
+		extra = strings.TrimSpace(extra)
+		if extra != "" && !strings.Contains(extra, ":") {
+			sb.WriteString(fmt.Sprintf("add antiddos_geo_tmp %s -exist\n", extra))
+		}
+	}
+	for _, cidr := range allowedCIDRs {
+		sb.WriteString(fmt.Sprintf("add antiddos_geo_tmp %s -exist\n", cidr))
+	}
+	sb.WriteString("swap antiddos_geo_tmp antiddos_geo_allow\n")
+	sb.WriteString("destroy antiddos_geo_tmp\n")
+
+	cmd := exec.Command("ipset", "restore")
+	cmd.Stdin = strings.NewReader(sb.String())
+	if err := cmd.Run(); err != nil {
+		fmt.Printf("[KERNEL-GEOIP] Failed to load ipset antiddos_geo_allow: %v\n", err)
+		return
+	}
+
+	dir := strings.ToLower(strings.TrimSpace(direction))
+	if dir == "in" || dir == "both" || dir == "" {
+		inCmd := fmt.Sprintf("iptables -t mangle -I PREROUTING 1 -p tcp --dport %d -m set ! --match-set antiddos_geo_allow src -j DROP -m comment --comment AntiDDoS_GeoIP_In", firewallPort)
+		_ = exec.Command("bash", "-c", inCmd).Run()
+	}
+	if dir == "out" || dir == "both" || dir == "" {
+		outCmd := "iptables -I OUTPUT 1 -p tcp -m conntrack --ctstate NEW ! --dport 53 -m set ! --match-set antiddos_geo_allow dst -j REJECT -m comment --comment AntiDDoS_GeoIP_Out"
+		_ = exec.Command("bash", "-c", outCmd).Run()
+	}
+	fmt.Printf("[KERNEL-GEOIP] Active OS-level GeoIP enforcement [Direction: %s, Subnets: %d]\n", strings.ToUpper(dir), len(allowedCIDRs))
+}
+
+func (b *Blocker) clearLinuxGeoIPRules() {
+	_ = exec.Command("bash", "-c", "iptables -t mangle -S PREROUTING | grep 'AntiDDoS_GeoIP_In' | sed 's/-A/-D/' | while read line; do iptables -t mangle $line; done").Run()
+	_ = exec.Command("bash", "-c", "iptables -S OUTPUT | grep 'AntiDDoS_GeoIP_Out' | sed 's/-A/-D/' | while read line; do iptables $line; done").Run()
 }
 
 func (b *Blocker) checkPrivileges() bool {

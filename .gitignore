@@ -1,7 +1,16 @@
-# Binaries at root (keep bin/ directory for turnkey clone)
+# Root runtime files
 /firewall.exe
 /firewall-linux-amd64
 /config.txt
+/whitelist.txt
+/blacklist.txt
+/routes.json
+
+# Runtime dynamic routes & geoip caches (only data folders, not pkg/geoip)
+/geoip/
+bin/geoip/
+bin/routes.json
+*.zone
 
 # OS and Editor files
 .DS_Store

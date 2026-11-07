@@ -309,6 +309,147 @@ func (ac *AccessControl) Counts() (whitelistCount, blacklistCount int) {
 	return len(ac.whitelistIPs) + len(ac.whitelistNets), len(ac.blacklistIPs) + len(ac.blacklistNets)
 }
 
+// WhitelistEntries returns all currently whitelisted IPs and CIDRs.
+func (ac *AccessControl) WhitelistEntries() []string {
+	ac.mu.RLock()
+	defer ac.mu.RUnlock()
+
+	entries := make([]string, 0, len(ac.whitelistIPs)+len(ac.whitelistNets))
+	for ip := range ac.whitelistIPs {
+		entries = append(entries, ip)
+	}
+	for _, n := range ac.whitelistNets {
+		entries = append(entries, n.String())
+	}
+	return entries
+}
+
+// BlacklistEntry represents an IP or CIDR on the blacklist with its reason.
+type BlacklistEntry struct {
+	Target string `json:"target"`
+	Reason string `json:"reason"`
+}
+
+// BlacklistEntries returns all currently blacklisted IPs and CIDRs with reasons.
+func (ac *AccessControl) BlacklistEntries() []BlacklistEntry {
+	ac.mu.RLock()
+	defer ac.mu.RUnlock()
+
+	entries := make([]BlacklistEntry, 0, len(ac.blacklistIPs)+len(ac.blacklistNets))
+	for ip, reason := range ac.blacklistIPs {
+		entries = append(entries, BlacklistEntry{Target: ip, Reason: reason})
+	}
+	for _, n := range ac.blacklistNets {
+		entries = append(entries, BlacklistEntry{Target: n.network.String(), Reason: n.reason})
+	}
+	return entries
+}
+
+// AddWhitelist adds an IP or CIDR to the whitelist and persists it to whitelist.txt.
+func (ac *AccessControl) AddWhitelist(target string) error {
+	ac.mu.Lock()
+	defer ac.mu.Unlock()
+
+	target = strings.TrimSpace(target)
+	if strings.Contains(target, "/") {
+		_, ipNet, err := net.ParseCIDR(target)
+		if err != nil {
+			return err
+		}
+		for _, existing := range ac.whitelistNets {
+			if existing.String() == ipNet.String() {
+				return nil
+			}
+		}
+		ac.whitelistNets = append(ac.whitelistNets, ipNet)
+	} else {
+		ip := net.ParseIP(target)
+		if ip == nil {
+			return fmt.Errorf("invalid IP: %s", target)
+		}
+		if _, exists := ac.whitelistIPs[ip.String()]; exists {
+			return nil
+		}
+		ac.whitelistIPs[ip.String()] = struct{}{}
+	}
+
+	return ac.saveWhitelistLocked()
+}
+
+// RemoveWhitelist removes an IP or CIDR from the whitelist and updates whitelist.txt.
+func (ac *AccessControl) RemoveWhitelist(target string) error {
+	ac.mu.Lock()
+	defer ac.mu.Unlock()
+
+	target = strings.TrimSpace(target)
+	if target == "127.0.0.1" || target == "::1" {
+		return fmt.Errorf("cannot remove localhost from whitelist")
+	}
+
+	delete(ac.whitelistIPs, target)
+	filtered := make([]*net.IPNet, 0, len(ac.whitelistNets))
+	for _, n := range ac.whitelistNets {
+		if n.String() != target {
+			filtered = append(filtered, n)
+		}
+	}
+	ac.whitelistNets = filtered
+	return ac.saveWhitelistLocked()
+}
+
+// RemoveBlacklist removes an IP or CIDR from the blacklist and updates blacklist.txt.
+func (ac *AccessControl) RemoveBlacklist(target string) error {
+	ac.mu.Lock()
+	defer ac.mu.Unlock()
+
+	target = strings.TrimSpace(target)
+	delete(ac.blacklistIPs, target)
+	filtered := make([]netWithReason, 0, len(ac.blacklistNets))
+	for _, n := range ac.blacklistNets {
+		if n.network.String() != target {
+			filtered = append(filtered, n)
+		}
+	}
+	ac.blacklistNets = filtered
+	return ac.saveBlacklistLocked()
+}
+
+func (ac *AccessControl) saveWhitelistLocked() error {
+	var sb strings.Builder
+	sb.WriteString("# Anti-DDoS Firewall - Whitelist\n")
+	for ip := range ac.whitelistIPs {
+		sb.WriteString(ip + "\n")
+	}
+	for _, n := range ac.whitelistNets {
+		sb.WriteString(n.String() + "\n")
+	}
+	err := os.WriteFile(ac.whitelistPath, []byte(sb.String()), 0644)
+	if err == nil {
+		if fi, statErr := os.Stat(ac.whitelistPath); statErr == nil {
+			ac.lastWhitelistMod = fi.ModTime()
+		}
+	}
+	return err
+}
+
+func (ac *AccessControl) saveBlacklistLocked() error {
+	var sb strings.Builder
+	sb.WriteString("# Anti-DDoS Firewall - Blacklist\n")
+	for ip, reason := range ac.blacklistIPs {
+		sb.WriteString(fmt.Sprintf("%s # %s\n", ip, reason))
+	}
+	for _, n := range ac.blacklistNets {
+		sb.WriteString(fmt.Sprintf("%s # %s\n", n.network.String(), n.reason))
+	}
+	err := os.WriteFile(ac.blacklistPath, []byte(sb.String()), 0644)
+	if err == nil {
+		if fi, statErr := os.Stat(ac.blacklistPath); statErr == nil {
+			ac.lastBlacklistMod = fi.ModTime()
+		}
+	}
+	return err
+}
+
 func (ac *AccessControl) createDefaultWhitelist() error {
 	content := `# Anti-DDoS Firewall - Whitelist
 # IPs and subnets in this file bypass all rate limits and signatures.

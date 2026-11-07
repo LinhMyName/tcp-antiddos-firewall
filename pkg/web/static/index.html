@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AEGIS-X // CYBER DEFENSE & ENDPOINT MATRIX v3.8</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="crt-scanlines"></div>
+  <div class="cyber-grid-bg"></div>
+
+  <!-- TOP COMMAND HEADER -->
+  <header class="topbar">
+    <div class="brand-cluster">
+      <div class="brand-emblem">
+        <span class="pulse-core"></span>
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5z"/>
+          <path d="M12 8v8M8 12h8"/>
+        </svg>
+      </div>
+      <div>
+        <div class="brand-title">
+          AEGIS-X <span class="accent-cyan">//</span> CYBER DEFENSE MATRIX
+          <span class="version-pill" id="sysVersion">v3.8-CORE</span>
+        </div>
+        <div class="brand-sub">
+          9-LAYER TCP MITIGATION ENGINE &bull; ORIGIN-TO-ENDPOINT LINKER &bull; GEOIP IN/OUT ENFORCER
+        </div>
+      </div>
+    </div>
+
+    <!-- NAVIGATION TABS -->
+    <nav class="nav-tabs">
+      <button class="nav-tab active" data-tab="overview">
+        <span class="tab-idx">01</span> TELEMETRY & RADAR
+      </button>
+      <button class="nav-tab" data-tab="endpoints">
+        <span class="tab-idx">02</span> ORIGIN &#8644; FW ENDPOINTS
+      </button>
+      <button class="nav-tab" data-tab="switchboard">
+        <span class="tab-idx">03</span> DEFENSE ON/OFF MATRIX
+      </button>
+      <button class="nav-tab" data-tab="acl">
+        <span class="tab-idx">04</span> THREAT STREAM & ACL
+      </button>
+    </nav>
+
+    <div class="status-cluster">
+      <div class="status-chip" id="defenseModeChip">
+        <span class="dot dot-emerald"></span>
+        <span id="defenseModeText">MODE: NORMAL</span>
+      </div>
+      <div class="status-chip" id="geoStatusChip">
+        <span class="dot dot-cyan"></span>
+        <span id="geoHeaderText">GEOIP: STANDBY</span>
+      </div>
+      <div class="clock-box" id="sysClock">00:00:00</div>
+    </div>
+  </header>
+
+  <!-- MAIN WORKSPACE -->
+  <main class="workspace">
+
+    <!-- KPI TELEMETRY RIBBON (Always visible) -->
+    <section class="kpi-ribbon">
+      <div class="kpi-card kpi-emerald">
+        <div class="kpi-head">
+          <span class="kpi-label">INGRESS BANDWIDTH (RX)</span>
+          <span class="kpi-tag">LIVE STREAM</span>
+        </div>
+        <div class="kpi-value" id="kpiMbpsIn">0.00 <small>Mbps</small></div>
+        <div class="kpi-foot">
+          <span>PEAK: <b id="kpiPeakMbps">0.00 Mbps</b></span>
+          <span>TOTAL: <b id="kpiBytesIn">0 B</b></span>
+        </div>
+      </div>
+
+      <div class="kpi-card kpi-cyan">
+        <div class="kpi-head">
+          <span class="kpi-label">PACKET VELOCITY (PPS)</span>
+          <span class="kpi-tag">L4 ENGINE</span>
+        </div>
+        <div class="kpi-value" id="kpiPpsIn">0 <small>pkt/s</small></div>
+        <div class="kpi-foot">
+          <span>EGRESS: <b id="kpiMbpsOut">0.00 Mbps</b></span>
+          <span>TX PKTS: <b id="kpiPpsOut">0/s</b></span>
+        </div>
+      </div>
+
+      <div class="kpi-card kpi-amber">
+        <div class="kpi-head">
+          <span class="kpi-label">ACTIVE TCP SESSIONS</span>
+          <span class="kpi-tag">CONCURRENCY</span>
+        </div>
+        <div class="kpi-value"><span id="kpiActiveConns">0</span> <small>/ <span id="kpiMaxConns">2000</span></small></div>
+        <div class="kpi-foot">
+          <span>HANDSHAKES: <b id="kpiTotalConns">0</b></span>
+          <span>ENDPOINTS: <b id="kpiRouteCount">1</b></span>
+        </div>
+      </div>
+
+      <div class="kpi-card kpi-crimson">
+        <div class="kpi-head">
+          <span class="kpi-label">MITIGATED / DROPPED</span>
+          <span class="kpi-tag">THREAT SHIELD</span>
+        </div>
+        <div class="kpi-value" id="kpiBlockedConns">0 <small>drops</small></div>
+        <div class="kpi-foot">
+          <span>SUBNET BANS: <b id="kpiBlockedSubnets">0</b></span>
+          <span>BLACKLIST: <b id="kpiBlacklistCount">0</b></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- TAB 1: TELEMETRY, GLOBAL CYBER RADAR & QUICK CONTROLS        -->
+    <!-- ============================================================ -->
+    <div class="tab-pane active" id="tab-overview">
+      <div class="grid-2col-asym">
+        <!-- LEFT: VISUAL CHARTS (RADAR + 180s OSCILLOSCOPE) -->
+        <div class="col-stack">
+          <!-- VISUAL 1: GLOBAL CYBER THREAT RADAR & VECTOR TOPOLOGY -->
+          <div class="cyber-panel">
+            <div class="panel-header">
+              <div class="panel-title-group">
+                <span class="panel-code">[VIS-01]</span>
+                <h2 class="panel-title">GLOBAL EDGE TOPOLOGY &amp; INTERNATIONAL VECTOR INTERCEPTOR</h2>
+              </div>
+              <div class="panel-badges">
+                <span class="legend-item"><i class="lg-dot lg-emerald"></i> ALLOWED VN/WHITELIST</span>
+                <span class="legend-item"><i class="lg-dot lg-cyan"></i> PROTECTED TUNNEL</span>
+                <span class="legend-item"><i class="lg-dot lg-crimson"></i> BLOCKED INTL / DDOS</span>
+              </div>
+            </div>
+            <div class="canvas-wrap radar-wrap">
+              <canvas id="topologyCanvas" width="920" height="310"></canvas>
+              <div class="radar-hud-overlay">
+                <div class="hud-line">CORE NODE: <b id="hudPrimaryEndpoint">0.0.0.0:9999</b></div>
+                <div class="hud-line">ORIGIN TARGET: <b id="hudPrimaryOrigin">127.0.0.1:14445</b></div>
+                <div class="hud-line">GEOIP SHIELD: <b id="hudGeoStatus">OFF</b></div>
+                <div class="hud-line">PROXY PROTO: <b id="hudProxyProto">OFF</b></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- VISUAL 2: 180-SECOND REAL-TIME OSCILLOSCOPE -->
+          <div class="cyber-panel">
+            <div class="panel-header">
+              <div class="panel-title-group">
+                <span class="panel-code">[VIS-02]</span>
+                <h2 class="panel-title">180-SECOND REAL-TIME BANDWIDTH &amp; PACKET OSCILLOSCOPE</h2>
+              </div>
+              <div class="unit-switcher">
+                <button class="unit-btn active" data-unit="mbps">Mbps</button>
+                <button class="unit-btn" data-unit="gbps">Gbps</button>
+                <button class="unit-btn" data-unit="pps">PPS (Pkts/s)</button>
+              </div>
+            </div>
+            <div class="canvas-wrap chart-wrap">
+              <canvas id="trafficCanvas" width="920" height="250"></canvas>
+              <div id="chartTooltip" class="chart-tooltip hidden"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: INSTANT ON/OFF SWITCHES + ENDPOINT LOOKUP + LAYER BARS -->
+        <div class="col-stack">
+          <!-- QUICK HACKER ON/OFF SWITCHES -->
+          <div class="cyber-panel">
+            <div class="panel-header">
+              <div class="panel-title-group">
+                <span class="panel-code">[CTRL-FAST]</span>
+                <h2 class="panel-title">INSTANT DEFENSE ON/OFF MATRIX</h2>
+              </div>
+              <span class="badge-live">HOT-RELOAD</span>
+            </div>
+
+            <div class="quick-switch-list">
+              <div class="switch-row highlight-row">
+                <div class="sw-info">
+                  <div class="sw-name">GEOIP INTERNATIONAL BLOCKER (VN ONLY / MULTI-CC)</div>
+                  <div class="sw-desc" id="quickGeoDesc">Chặn kết nối quốc tế cả chiều IN &amp; OUT, chỉ cho phép quốc gia chỉ định</div>
+                </div>
+                <label class="cyber-toggle">
+                  <input type="checkbox" data-cfg-toggle="geoip_enabled" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+
+              <div class="switch-row">
+                <div class="sw-info">
+                  <div class="sw-name">OS KERNEL PACKET DROP (iptables / ipset / netsh)</div>
+                  <div class="sw-desc">Khóa thẳng IP tấn công ở tầng nhân hệ điều hành</div>
+                </div>
+                <label class="cyber-toggle">
+                  <input type="checkbox" data-cfg-toggle="kernel_block_enabled" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+
+              <div class="switch-row">
+                <div class="sw-info">
+                  <div class="sw-name">L7 ATTACK SIGNATURE ENGINE (29 PATTERNS)</div>
+                  <div class="sw-desc">Chặn HTTP Flood, SOCKS4/5 Proxy, TLS Scanner, Mirai/Botnet</div>
+                </div>
+                <label class="cyber-toggle">
+                  <input type="checkbox" data-cfg-toggle="layer_signature_enabled" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+
+              <div class="switch-row">
+                <div class="sw-info">
+                  <div class="sw-name">HALF-OPEN SYN &amp; HANDSHAKE GUARD</div>
+                  <div class="sw-desc">Chống treo socket rỗng không gửi dữ liệu đầu tiên</div>
+                </div>
+                <label class="cyber-toggle">
+                  <input type="checkbox" data-cfg-toggle="layer_halfopen_enabled" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+
+              <div class="switch-row">
+                <div class="sw-info">
+                  <div class="sw-name">BOTNET SUBNET /24 &amp; /16 AUTO-BAN</div>
+                  <div class="sw-desc">Tự động gom cụm và khóa cả dải mạng khi phát hiện DDoS phân tán</div>
+                </div>
+                <label class="cyber-toggle">
+                  <input type="checkbox" data-cfg-toggle="layer_subnet_enabled" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+
+              <div class="switch-row danger-row">
+                <div class="sw-info">
+                  <div class="sw-name">EMERGENCY WHITELIST-ONLY LOCKDOWN</div>
+                  <div class="sw-desc">Khóa toàn bộ kết nối ngoài, chỉ cho phép IP trong Whitelist</div>
+                </div>
+                <label class="cyber-toggle toggle-crimson">
+                  <input type="checkbox" data-cfg-toggle="lockdown_whitelist_only" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <!-- INLINE GEOIP & PROXY PROTOCOL BAR -->
+            <div class="inline-config-bar">
+              <div class="field-mini">
+                <label>ALLOWED COUNTRIES</label>
+                <input type="text" id="quickAllowedCC" placeholder="VN,SG,JP" value="VN" />
+              </div>
+              <div class="field-mini">
+                <label>DIRECTION</label>
+                <select id="quickGeoDir">
+                  <option value="both">BOTH (IN &amp; OUT)</option>
+                  <option value="in">INBOUND ONLY</option>
+                  <option value="out">OUTBOUND ONLY</option>
+                </select>
+              </div>
+              <div class="field-mini">
+                <label>REAL IP (PROXY)</label>
+                <select id="quickProxyProto">
+                  <option value="off">OFF (Standard)</option>
+                  <option value="v1">PROXY v1 (Text)</option>
+                  <option value="v2">PROXY v2 (Binary)</option>
+                </select>
+              </div>
+              <button class="btn-cyber btn-sm" id="btnQuickApply">APPLY</button>
+            </div>
+          </div>
+
+          <!-- DEFENSE LAYER INTERCEPTION BREAKDOWN (VISUAL BARS) -->
+          <div class="cyber-panel">
+            <div class="panel-header">
+              <div class="panel-title-group">
+                <span class="panel-code">[VIS-03]</span>
+                <h2 class="panel-title">DEFENSE LAYER INTERCEPTION MATRIX</h2>
+              </div>
+              <span class="panel-meta" id="uptimeLabel">UPTIME: 00:00:00</span>
+            </div>
+            <div class="layer-bars" id="layerBarsContainer">
+              <!-- Populated dynamically by app.js -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ACTIVE PROTECTED ROUTES PREVIEW + ENDPOINT INSPECTOR -->
+      <div class="grid-2col-equal mt-16">
+        <div class="cyber-panel">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <span class="panel-code">[LINK-01]</span>
+              <h2 class="panel-title">ACTIVE FIREWALL ENDPOINTS &#8644; ORIGIN SERVERS</h2>
+            </div>
+            <button class="btn-cyber btn-sm" id="btnJumpAddRoute">+ LINK NEW ORIGIN SERVER</button>
+          </div>
+          <div class="table-scroll">
+            <table class="cyber-table">
+              <thead>
+                <tr>
+                  <th>STATUS</th>
+                  <th>SERVICE / NODE</th>
+                  <th>FIREWALL ENDPOINT (CLIENT)</th>
+                  <th>ORIGIN SERVER (BACKEND)</th>
+                  <th>LATENCY</th>
+                  <th>CONNS</th>
+                  <th>ON/OFF</th>
+                </tr>
+              </thead>
+              <tbody id="overviewRoutesBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ENDPOINT TELEMETRY LOOKUP (Like anti.nchzla.online public lookup) -->
+        <div class="cyber-panel">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <span class="panel-code">[INSPECT]</span>
+              <h2 class="panel-title">ORIGIN SERVER &#8594; FIREWALL ENDPOINT LOOKUP</h2>
+            </div>
+            <span class="badge-cyan">INSTANT VERIFY</span>
+          </div>
+          <p class="panel-hint">
+            Nhập IP và Port máy chủ gốc (Origin Server) để tra cứu Endpoint Firewall đang bảo vệ, kiểm tra độ trễ và lấy địa chỉ kết nối cho Client Game.
+          </p>
+          <form id="lookupForm" class="lookup-bar">
+            <input type="text" id="lookupOriginIP" placeholder="Origin IP (VD: 127.0.0.1 hoặc 103.x.x.x)" required />
+            <input type="number" id="lookupOriginPort" placeholder="Origin Port (VD: 14445)" />
+            <button type="submit" class="btn-cyber">SEARCH ENDPOINT</button>
+          </form>
+          <div id="lookupResultBox" class="lookup-result hidden"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- TAB 2: ORIGIN SERVER <-> FIREWALL ENDPOINT PROVISIONING      -->
+    <!-- ============================================================ -->
+    <div class="tab-pane" id="tab-endpoints">
+      <div class="grid-endpoint-layout">
+        <!-- LEFT: PROVISIONING / LINKER FORM -->
+        <div class="cyber-panel">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <span class="panel-code">[PROVISION]</span>
+              <h2 class="panel-title" id="routeFormTitle">SETUP ORIGIN SERVER &amp; LINK FW ENDPOINT</h2>
+            </div>
+            <button class="btn-ghost btn-xs hidden" id="btnCancelEditRoute">RESET FORM</button>
+          </div>
+
+          <form id="routeForm" class="cyber-form">
+            <input type="hidden" id="routeIdInput" value="0" />
+
+            <div class="form-group">
+              <label>TÊN MÁY CHỦ / ROUTE IDENTIFIER</label>
+              <input type="text" id="routeNameInput" placeholder="VD: NRO Server 1 - Cụm Vũ Trụ" required />
+            </div>
+
+            <div class="form-divider"><span>1. MÁY CHỦ GỐC (ORIGIN BACKEND SERVER)</span></div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label>IP MÁY CHỦ GỐC (ORIGIN IP)</label>
+                <input type="text" id="routeOriginIPInput" placeholder="VD: 103.142.x.x hoặc 127.0.0.1" required />
+              </div>
+              <div class="form-group">
+                <label>PORT GỐC (ORIGIN PORT)</label>
+                <input type="number" id="routeOriginPortInput" placeholder="VD: 14445" min="1" max="65535" required />
+              </div>
+            </div>
+
+            <div class="form-divider"><span>2. ENDPOINT FIREWALL (ĐỊA CHỈ CẤP CHO CLIENT)</span></div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label>DOMAIN / IP FIREWALL PUBLIC</label>
+                <input type="text" id="routeDomainInput" placeholder="VD: anti.tenmien.vn hoặc IP VPS FW" />
+              </div>
+              <div class="form-group">
+                <label>PORT FIREWALL (ĐỂ TRỐNG = TỰ CẤP 20001+)</label>
+                <input type="number" id="routeListenPortInput" placeholder="Auto (20001+) hoặc 14445 / 9999" min="0" max="65535" />
+              </div>
+            </div>
+
+            <div class="form-divider"><span>3. CHẾ ĐỘ BẢO VỆ &amp; ĐẨY IP GỐC</span></div>
+
+            <div class="form-row-3">
+              <div class="form-group">
+                <label>PROTOCOL PROFILE</label>
+                <select id="routeProtocolInput">
+                  <option value="TCP+SYN">TCP + SYN Shield</option>
+                  <option value="GAME-NRO">GAME-NRO (NoDelay)</option>
+                  <option value="RAW-TCP">RAW TCP Stream</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>REAL CLIENT IP (PROXY)</label>
+                <select id="routeProxyProtoInput">
+                  <option value="inherit">Theo cấu hình chung</option>
+                  <option value="off">OFF (Tắt)</option>
+                  <option value="v1">PROXY v1 (Text)</option>
+                  <option value="v2">PROXY v2 (Binary)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>DEEP INSPECTION</label>
+                <select id="routeInspectInput">
+                  <option value="strict_game">Strict L4 + L7 Game</option>
+                  <option value="standard">Standard L7</option>
+                  <option value="l4_fast">L4 Fast-Path Only</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="endpoint-preview-box">
+              <div class="ep-title">TUNNEL TOPOLOGY PREVIEW</div>
+              <div class="ep-flow">
+                <span class="ep-node ep-client">CLIENT GAME</span>
+                <span class="ep-arrow">&#10230;</span>
+                <span class="ep-node ep-fw" id="previewFwEndpoint">fw.edge-node.vn:AUTO</span>
+                <span class="ep-arrow">&#10230;</span>
+                <span class="ep-node ep-origin" id="previewOriginTarget">127.0.0.1:14445</span>
+              </div>
+            </div>
+
+            <button type="submit" class="btn-cyber btn-block" id="btnSubmitRoute">
+              DEPLOY &amp; LINK FIREWALL ENDPOINT
+            </button>
+          </form>
+        </div>
+
+        <!-- RIGHT: FULL PROTECTED ROUTES MANAGEMENT TABLE -->
+        <div class="cyber-panel">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <span class="panel-code">[MATRIX-ENDPOINTS]</span>
+              <h2 class="panel-title">LINKED ORIGIN SERVERS &amp; FIREWALL ENDPOINTS</h2>
+            </div>
+            <div class="panel-badges">
+              <span class="badge-emerald">AUTO-WHITELIST ORIGIN</span>
+              <span class="badge-cyan">TCP NODELAY</span>
+            </div>
+          </div>
+
+          <div class="table-scroll">
+            <table class="cyber-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>SERVER NAME</th>
+                  <th>FIREWALL ENDPOINT (PUBLIC)</th>
+                  <th>ORIGIN SERVER (BACKEND)</th>
+                  <th>MODE / REAL IP</th>
+                  <th>ORIGIN HEALTH</th>
+                  <th>TRAFFIC (RX/TX)</th>
+                  <th>ACTIVE / DROPS</th>
+                  <th>ON/OFF</th>
+                  <th>ACTIONS</th>
+                </tr>
+              </thead>
+              <tbody id="fullRoutesTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- TAB 3: FULL DEFENSE ON/OFF MATRIX & GEOIP / RATE TUNING      -->
+    <!-- ============================================================ -->
+    <div class="tab-pane" id="tab-switchboard">
+      <div class="grid-2col-equal">
+        <!-- LEFT: 9-LAYER ON/OFF SWITCHBOARD -->
+        <div class="cyber-panel">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <span class="panel-code">[SW-MATRIX]</span>
+              <h2 class="panel-title">9-LAYER DEFENSE SYSTEM ON/OFF SWITCHBOARD</h2>
+            </div>
+            <span class="badge-emerald">REAL-TIME ATOMIC</span>
+          </div>
+
+          <div class="full-switch-grid">
+            <div class="sw-card">
+              <div class="sw-card-top">
+                <span class="sw-layer-tag">LAYER 1.5 // GEOIP</span>
+                <label class="cyber-toggle">
+                  <input type="checkbox" data-cfg-toggle="geoip_enabled" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <h3>International GeoIP Blocker (IN &amp; OUT)</h3>
+              <p>Chặn toàn bộ kết nối quốc tế, chỉ cho phép dải IP Việt Nam (1,666 dải VNNIC nhúng sẵn) hoặc các quốc gia được chọn.</p>
+            </div>
+
+            <div class="sw-card">
+              <div class="sw-card-top">
+                <span class="sw-layer-tag">KERNEL // GEO-IPSET</span>
+                <label class="cyber-toggle">
+                  <input type="checkbox" data-cfg-toggle="geoip_kernel_enforce" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <h3>Linux Kernel ipset GeoIP Enforcement</h3>
+              <p>Đẩy toàn bộ dải CIDR quốc gia xuống nhân Linux (`ipset antiddos_geo_allow` + `iptables PREROUTING & OUTPUT`).</p>
+            </div>
+
+            <div class="sw-card">
+              <div class="sw-card-top">
+                <span class="sw-layer-tag">LAYER 3 // SYN GUARD</span>
+                <label class="cyber-toggle">
+                  <input type="checkbox" data-cfg-toggle="layer_halfopen_enabled" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <h3>Half-Open / Empty Connection Shield</h3>
+              <p>Giới hạn số kết nối chưa gửi gói handshake đầu tiên và tự động ngắt sau `halfopen_timeout_sec`.</p>
+            </div>
+
+            <div class="sw-card">
+              <div class="sw-card-top">
+                <span class="sw-layer-tag">LAYER 4 // DPI ENGINE</span>
+                <label class="cyber-toggle">
+                  <input type="checkbox" data-cfg-toggle="layer_signature_enabled" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <h3>29-Pattern L7 Attack Signature Inspector</h3>
+              <p>Quét gói tin đầu tiên: chặn HTTP GET/POST Flood, SOCKS4/5 Proxy, CONNECT, TLS Bot, SSH/Telnet/RDP Scanner, Null/0xFF Flood.</p>
+            </div>
+
+            <div class="sw-card">
+              <div class="sw-card-top">
+                <span class="sw-layer-tag">LAYER 6 // SLOWLORIS</span>
+                <label class="cyber-toggle">
+                  <input type="checkbox" data-cfg-toggle="layer_slowloris_enabled" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <h3>Slowloris &amp; Short-Lived Flood Detector</h3>
+              <p>Phạt điểm hành vi đối với các kết nối ngâm giữ socket hoặc spam kết nối đóng/mở liên tục dưới 500ms.</p>
+            </div>
+
+            <div class="sw-card">
+              <div class="sw-card-top">
+                <span class="sw-layer-tag">LAYER 7 // SUBNET BAN</span>
+                <label class="cyber-toggle">
+                  <input type="checkbox" data-cfg-toggle="layer_subnet_enabled" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <h3>Botnet /24 &amp; /16 Subnet Auto-Aggregation</h3>
+              <p>Tự động khóa cả lớp mạng `/24` khi có nhiều IP trong cùng dải bị chặn và leo thang lên `/16` khi bị Botnet tấn công.</p>
+            </div>
+
+            <div class="sw-card">
+              <div class="sw-card-top">
+                <span class="sw-layer-tag">LAYER 8 // SURGE</span>
+                <label class="cyber-toggle">
+                  <input type="checkbox" data-cfg-toggle="layer_surge_enabled" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <h3>Dynamic Surge Auto-Elevation</h3>
+              <p>Tự động chuyển sang chế độ `ELEVATED` / `EMERGENCY` khi lưu lượng tăng đột biến gấp `surge_multiplier` lần bình thường.</p>
+            </div>
+
+            <div class="sw-card">
+              <div class="sw-card-top">
+                <span class="sw-layer-tag">LAYER 9 // OS KERNEL</span>
+                <label class="cyber-toggle">
+                  <input type="checkbox" data-cfg-toggle="kernel_block_enabled" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <h3>OS Kernel Packet Dropper (netsh / iptables)</h3>
+              <p>Khóa cứng IP tái phạm nhiều lần ở tầng card mạng hệ điều hành để giảm 100% tải CPU cho ứng dụng.</p>
+            </div>
+
+            <div class="sw-card sw-card-danger">
+              <div class="sw-card-top">
+                <span class="sw-layer-tag">DEFCON 1 // LOCKDOWN</span>
+                <label class="cyber-toggle toggle-crimson">
+                  <input type="checkbox" data-cfg-toggle="lockdown_whitelist_only" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <h3>Emergency Whitelist-Only Lockdown</h3>
+              <p>Chế độ khẩn cấp: Chặn 100% kết nối từ bên ngoài, chỉ cho phép các IP nằm trong danh sách Whitelist đi qua.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: GEOIP POLICY, PROXY PROTOCOL & RATE LIMIT TUNING -->
+        <div class="cyber-panel">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <span class="panel-code">[TUNING-CFG]</span>
+              <h2 class="panel-title">GEOIP POLICY, REAL IP &amp; RATE LIMIT PARAMETERS</h2>
+            </div>
+            <span class="badge-cyan">SAVES TO CONFIG.TXT</span>
+          </div>
+
+          <form id="fullConfigForm" class="cyber-form">
+            <div class="form-divider"><span>GEOIP INTERNATIONAL FILTERING (CHẶN QUỐC TẾ IN &amp; OUT)</span></div>
+
+            <div class="preset-chips">
+              <button type="button" class="chip-btn" data-geo-preset="VN">VIETNAM ONLY (VN)</button>
+              <button type="button" class="chip-btn" data-geo-preset="VN,SG,JP,KR">VN + SG + JP + KR</button>
+              <button type="button" class="chip-btn" data-geo-preset="VN,SG,TH,MY,ID,PH">ASEAN (SEA)</button>
+              <button type="button" class="chip-btn" data-geo-preset="VN,US,SG,JP,DE,FR">GLOBAL VIP</button>
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label>QUỐC GIA ĐƯỢC PHÉP (ISO CODES)</label>
+                <input type="text" id="cfgAllowedCountries" placeholder="VD: VN hoặc VN,SG,JP" />
+              </div>
+              <div class="form-group">
+                <label>QUỐC GIA BỊ CHẶN CỤ THỂ (TÙY CHỌN)</label>
+                <input type="text" id="cfgBlockedCountries" placeholder="VD: CN,RU (để trống nếu dùng Allowlist)" />
+              </div>
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label>HƯỚNG KIỂM SOÁT LƯU LƯỢNG QUỐC TẾ</label>
+                <select id="cfgGeoDirection">
+                  <option value="both">BOTH — Chặn quốc tế cả chiều VÀO (IN) &amp; RA (OUT)</option>
+                  <option value="in">INBOUND ONLY — Chỉ chặn chiều VÀO</option>
+                  <option value="out">OUTBOUND ONLY — Chỉ chặn chiều RA</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>PROXY PROTOCOL (ĐẨY IP THẬT VỀ BACKEND)</label>
+                <select id="cfgProxyProtocol">
+                  <option value="off">OFF — Mặc định (Backend thấy IP của FW)</option>
+                  <option value="v1">v1 — HAProxy Text Header (Khuyên dùng)</option>
+                  <option value="v2">v2 — HAProxy Binary Header</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-divider"><span>THÔNG SỐ GIỚI HẠN KẾT NỐI (RATE LIMITING)</span></div>
+
+            <div class="form-row-3">
+              <div class="form-group">
+                <label>MAX CONN / EXTERNAL IP</label>
+                <input type="number" id="cfgMaxConnExt" min="1" max="5000" />
+              </div>
+              <div class="form-group">
+                <label>NEW CONN/S / EXTERNAL IP</label>
+                <input type="number" id="cfgMaxRateExt" min="1" max="5000" />
+              </div>
+              <div class="form-group">
+                <label>MAX PKTS/S / EXTERNAL IP</label>
+                <input type="number" id="cfgMaxMsgsExt" min="5" max="50000" />
+              </div>
+            </div>
+
+            <div class="form-row-3">
+              <div class="form-group">
+                <label>GLOBAL MAX ACTIVE CONNS</label>
+                <input type="number" id="cfgMaxGlobalActive" min="50" max="200000" />
+              </div>
+              <div class="form-group">
+                <label>GLOBAL NEW CONN/S</label>
+                <input type="number" id="cfgMaxGlobalRate" min="10" max="100000" />
+              </div>
+              <div class="form-group">
+                <label>PUBLIC FIREWALL DOMAIN</label>
+                <input type="text" id="cfgPublicDomain" placeholder="VD: anti.yourserver.vn" />
+              </div>
+            </div>
+
+            <button type="submit" class="btn-cyber btn-block">
+              SAVE &amp; APPLY ALL PARAMETERS TO ENGINE
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- TAB 4: REAL-TIME THREAT STREAM & WHITELIST / BLACKLIST ACL   -->
+    <!-- ============================================================ -->
+    <div class="tab-pane" id="tab-acl">
+      <div class="grid-2col-asym">
+        <!-- LEFT: LIVE THREAT STREAM TERMINAL -->
+        <div class="cyber-panel">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <span class="panel-code">[SOC-STREAM]</span>
+              <h2 class="panel-title">REAL-TIME THREAT &amp; INTERCEPTION STREAM</h2>
+            </div>
+            <div class="stream-controls">
+              <input type="text" id="eventFilterInput" class="input-sm" placeholder="Filter IP / Signature / Country..." />
+              <button class="btn-ghost btn-xs" id="btnClearEvents">CLEAR LOGS</button>
+            </div>
+          </div>
+
+          <div class="table-scroll tall-scroll">
+            <table class="cyber-table">
+              <thead>
+                <tr>
+                  <th>TIME</th>
+                  <th>SEVERITY</th>
+                  <th>ATTACKER / SOURCE IP</th>
+                  <th>SIGNATURE / LAYER</th>
+                  <th>FORENSIC DETAILS</th>
+                  <th>QUICK ACTION</th>
+                </tr>
+              </thead>
+              <tbody id="threatStreamBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- RIGHT: WHITELIST & BLACKLIST MANAGER -->
+        <div class="col-stack">
+          <div class="cyber-panel">
+            <div class="panel-header">
+              <div class="panel-title-group">
+                <span class="panel-code">[ACL-WL]</span>
+                <h2 class="panel-title">TRUSTED WHITELIST (BYPASS ALL CHECKS)</h2>
+              </div>
+              <span class="badge-emerald" id="wlBadgeCount">0 IPs</span>
+            </div>
+            <form id="addWhitelistForm" class="inline-acl-form">
+              <input type="text" id="wlTargetInput" placeholder="IP hoặc CIDR (VD: 103.x.x.x hoặc 10.0.0.0/8)" required />
+              <button type="submit" class="btn-cyber btn-sm">+ WHITELIST</button>
+            </form>
+            <div class="acl-list-box" id="whitelistContainer"></div>
+          </div>
+
+          <div class="cyber-panel">
+            <div class="panel-header">
+              <div class="panel-title-group">
+                <span class="panel-code">[ACL-BL]</span>
+                <h2 class="panel-title">PERMANENT &amp; KERNEL BLACKLIST</h2>
+              </div>
+              <span class="badge-crimson" id="blBadgeCount">0 IPs</span>
+            </div>
+            <form id="addBlacklistForm" class="inline-acl-form">
+              <input type="text" id="blTargetInput" placeholder="IP hoặc Subnet (VD: 45.x.x.x/24)" required />
+              <input type="text" id="blReasonInput" placeholder="Lý do chặn..." />
+              <button type="submit" class="btn-cyber btn-crimson btn-sm">+ BAN IP</button>
+            </form>
+            <div class="acl-list-box" id="blacklistContainer"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

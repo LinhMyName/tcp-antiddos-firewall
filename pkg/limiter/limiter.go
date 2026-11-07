@@ -24,7 +24,6 @@ type Limiter struct {
 	mu              sync.RWMutex
 	trackers        map[string]*IPTracker
 	globalActive    int64
-	globalConnCount int64
 	globalWindow    []time.Time
 	windowMu        sync.Mutex
 	cleanupInterval time.Duration

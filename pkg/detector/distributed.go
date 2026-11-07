@@ -3,7 +3,6 @@ package detector
 import (
 	"fmt"
 	"net"
-	"strings"
 	"sync"
 	"time"
 
@@ -181,9 +180,4 @@ func (d *Detector) ActiveBlockedSubnetCount() int {
 		}
 	}
 	return count
-}
-
-// Helper to check if string contains CIDR
-func isCIDR(s string) bool {
-	return strings.Contains(s, "/")
 }

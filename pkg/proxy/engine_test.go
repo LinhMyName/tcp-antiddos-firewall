@@ -218,3 +218,68 @@ kernel_block_enabled=false
 		t.Fatalf("timed out waiting for PROXY header at backend")
 	}
 }
+
+func TestGeoIPOutboundBlockingInEngine(t *testing.T) {
+	tmpDir := t.TempDir()
+	cfgFile := filepath.Join(tmpDir, "config.txt")
+	wlFile := filepath.Join(tmpDir, "whitelist.txt")
+	blFile := filepath.Join(tmpDir, "blacklist.txt")
+	geoDir := filepath.Join(tmpDir, "geoip")
+
+	_ = os.WriteFile(wlFile, []byte("127.0.0.1\n"), 0644)
+	_ = os.WriteFile(blFile, []byte(""), 0644)
+
+	testLn, _ := net.Listen("tcp", "127.0.0.1:0")
+	fwPort := testLn.Addr().(*net.TCPAddr).Port
+	testLn.Close()
+
+	// Point backend_host to an international IP (8.8.8.8) while allowing ONLY Vietnam (VN)
+	cfgContent := fmt.Sprintf(`
+firewall_host=127.0.0.1
+firewall_port=%d
+backend_host=8.8.8.8
+backend_port=53
+geoip_enabled=true
+geoip_allowed_countries=VN
+geoip_direction=both
+geoip_data_dir=%s
+whitelist_file=%s
+blacklist_file=%s
+kernel_block_enabled=false
+`, fwPort, strings.ReplaceAll(geoDir, `\`, `/`), strings.ReplaceAll(wlFile, `\`, `/`), strings.ReplaceAll(blFile, `\`, `/`))
+
+	_ = os.WriteFile(cfgFile, []byte(cfgContent), 0644)
+
+	cfgMgr, err := config.NewManager(cfgFile)
+	if err != nil {
+		t.Fatalf("failed to load cfg: %v", err)
+	}
+
+	engine := NewEngine(cfgMgr)
+	go func() {
+		_ = engine.Start()
+	}()
+	defer engine.Stop()
+
+	time.Sleep(100 * time.Millisecond)
+
+	fwAddr := fmt.Sprintf("127.0.0.1:%d", fwPort)
+	conn, err := net.DialTimeout("tcp", fwAddr, 2*time.Second)
+	if err != nil {
+		t.Fatalf("failed to connect to firewall: %v", err)
+	}
+	defer conn.Close()
+
+	_, _ = conn.Write([]byte("GAME_LOGIN_TEST\n"))
+
+	// Outbound to 8.8.8.8 should be immediately blocked by GeoIP Outbound check
+	buf := make([]byte, 64)
+	_ = conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
+	_, readErr := conn.Read(buf)
+	if readErr == nil {
+		t.Fatalf("expected connection to be closed due to GeoIP outbound block to 8.8.8.8")
+	}
+	if engine.stats.TotalBlocked() == 0 {
+		t.Fatalf("expected TotalBlocked > 0 after GeoIP outbound block")
+	}
+}
